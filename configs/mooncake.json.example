@@ -1,0 +1,9 @@
+{
+  "metadata_server": "<MOONCAKE_METADATA_HOST>:50050",
+  "protocol": "ascend",
+  "device_name": "",
+  "master_server_address": "<MOONCAKE_METADATA_HOST>:50050",
+  "global_segment_size": "60GB",
+  "preferred_segment": false,
+  "prefer_alloc_in_same_node": true
+}
