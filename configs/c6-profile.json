@@ -1,0 +1,30 @@
+{
+  "profile": "C6",
+  "model": "GLM-5.2-w4a8c8",
+  "max_model_len": 256000,
+  "prefill": {
+    "nodes": 4,
+    "dp_size": 4,
+    "dp_size_local": 1,
+    "tp_size": 8,
+    "max_num_seqs": 256,
+    "max_num_batched_tokens": 8192,
+    "gpu_memory_utilization": 0.95,
+    "mtp_tokens": 1
+  },
+  "decode": {
+    "nodes": 4,
+    "dp_size": 8,
+    "dp_size_local": 2,
+    "tp_size": 4,
+    "max_num_seqs": 128,
+    "max_num_batched_tokens": 256,
+    "gpu_memory_utilization": 0.95,
+    "mtp_tokens": 3,
+    "mlapo": true,
+    "shared_expert_multistream": true,
+    "fused_mc2": false,
+    "dynamic_eplb": false,
+    "hccl_buffsize": 2560
+  }
+}

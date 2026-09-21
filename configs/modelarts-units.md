@@ -8,6 +8,9 @@ Create one service with three inference units.
 | Prefill workers | role-1 | 3 | same | `P_WORKER` |
 | Decode workers | role-2 | 4 | same | `D_WORKER` |
 
+Each Prefill node hosts one TP8 rank. Each Decode node hosts two TP4 ranks,
+for eight Decode ranks in total.
+
 All units use:
 
 - image: `<SWR_IMAGE_URI>@<IMAGE_DIGEST>`;

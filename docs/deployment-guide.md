@@ -1,19 +1,20 @@
-# GLM-5.2 1M P/D deployment on Huawei Cloud ModelArts Standard
+# GLM-5.2 C6 P/D deployment on Huawei Cloud ModelArts Standard
 
 ## 1. Scope
 
-This public-cloud template deploys `GLM-5.2-w4a8c8` as a 64-NPU
-prefill/decode-disaggregated service on ModelArts Standard.
+This public-cloud template deploys `GLM-5.2-w4a8c8` using the validated C6
+64-NPU prefill/decode-disaggregated profile on ModelArts Standard.
 
 | Side | Nodes | Local NPUs | Parallelism | MTP | Batched tokens |
 |---|---:|---:|---|---:|---:|
 | Prefill | 4 | 8 | DP4 × TP8 × EP | 1 | 8192 |
-| Decode | 4 | 8 | DP4 × TP8 × EP | 3 | 256 |
+| Decode | 4 | 8 | DP8 × TP4 × EP; two ranks/node | 3 | 256 |
 
-Both sides configure a 1,048,576-token context, prefix caching, context
-parallel parameters, Mooncake/Ascend Store KV transfer, and GLM reasoning/tool
-parsers. This is a recorded operational profile and must be revalidated against
-the selected public-cloud flavor, driver, firmware, and image digest.
+Both sides configure a 256,000-token context, prefix caching,
+Mooncake/Ascend Store KV transfer, and GLM reasoning/tool parsers. C6 enables
+MLAPO and shared-expert multistream on Decode, while keeping Decode Fused MC2
+and Dynamic EPLB disabled. It must still be revalidated against the selected
+public-cloud flavor, driver, firmware, and image digest.
 
 ## 2. Project-specific values
 
@@ -62,7 +63,7 @@ References:
 
 1. Reserve eight homogeneous nodes with eight 64 GB Ascend A2 NPUs each.
 2. Use a low-latency VPC and allow all required HCCL and KV-transfer traffic
-   between the eight nodes.
+   between the eight nodes. Each Decode node must host two TP4 ranks.
 3. Confirm access to SWR, SFS, OBS, LTS, CES, and the internal Mooncake metadata
    service.
 4. Run the official vLLM Ascend multi-node communication verification.
@@ -112,28 +113,35 @@ vLLM Ascend load-balancing proxy on the entry Prefill pod.
 
 ## 9. Runtime configuration
 
-Important Prefill settings:
+Important Prefill settings in C6:
 
 - DP4 × TP8 × EP; one rank per node;
-- `max-model-len=1048576`;
+- `max-model-len=256000`;
 - `max-num-batched-tokens=8192`;
-- `max-num-seqs=8`;
+- `max-num-seqs=256`;
 - `gpu-memory-utilization=0.95`;
 - MTP1 and eager execution;
 - FlashComm1 and DSA context-parallel optimization.
 
-Important Decode settings:
+Important Decode settings in C6:
 
-- DP4 × TP8 × EP; one rank per node;
-- `max-model-len=1048576`;
+- DP8 × TP4 × EP; two ranks per node;
+- `max-model-len=256000`;
 - `max-num-batched-tokens=256`;
-- `max-num-seqs=8`;
-- `gpu-memory-utilization=0.90`;
+- `max-num-seqs=128`;
+- `gpu-memory-utilization=0.95`;
 - MTP3;
 - `FULL_DECODE_ONLY` graph capture;
-- MLAPO and recompute scheduling.
+- MLAPO, shared-expert multistream, and recompute scheduling;
+- Decode `HCCL_BUFFSIZE=2560`;
+- no Decode Fused MC2 and no Dynamic EPLB.
 
 Do not move A3-only variables into this A2 profile.
+
+The archived C6 Prefill script still carried `ASCEND_A3_ENABLE=1`. This public
+A2 template intentionally omits that A3-only environment variable while
+preserving the validated C6 topology, batching, memory, communication, MTP,
+and Decode optimization settings.
 
 ## 10. Acceptance
 
@@ -145,7 +153,7 @@ Do not accept the deployment from a green console label alone. Verify:
 4. `/health` succeeds for every backend and the proxy;
 5. non-streaming, streaming, reasoning, tool call, and tool-result continuation;
 6. UTF-8 and usage accounting;
-7. a bounded context smoke with `input + output <= 1,048,576`;
+7. a bounded context smoke with `input + output <= 256,000`;
 8. no fallback to another model;
 9. no HCCL, EngineCore, NPU kernel, OOM, or repeated restart errors.
 
@@ -165,7 +173,7 @@ restore the complete known-good version before resuming traffic.
 
 - ModelArts public-cloud resource names and A2 availability vary by region.
 - The official image tag is mutable unless pinned by digest.
-- A configured 1M context does not prove every input/output combination.
+- A configured 256K context does not prove every input/output combination.
 - Mooncake, Ascend Store, MTP, graph capture, and sparse operators are tightly
   coupled to the exact image and model revision.
 - The recorded profile requires 64 dedicated A2 NPUs and is not a low-cost

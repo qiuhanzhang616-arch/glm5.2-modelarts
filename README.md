@@ -8,16 +8,17 @@ This repository is intentionally separate from
 The two models use different images, weights, topology, MTP settings, context
 handling, and operational procedures.
 
-The primary profile here reproduces a recorded 64-NPU, 1M-context,
-prefill/decode-disaggregated baseline:
+The primary profile here reproduces the validated **C6** 64-NPU,
+256K-context, prefill/decode-disaggregated baseline:
 
 - 4 Prefill nodes × 8 A2 NPUs, DP4 × TP8
-- 4 Decode nodes × 8 A2 NPUs, DP4 × TP8
+- 4 Decode nodes × 8 A2 NPUs, DP8 × TP4 (two Decode ranks per node)
 - Mooncake + Ascend Store KV transfer
-- 1,048,576 configured context tokens
+- 256,000 configured context tokens
 - Prefill MTP1 and Decode MTP3
 - Automatic prefix caching
-- Decode-only graph capture on Decode ranks
+- Decode batch 256, MLAPO, shared-expert multistream, and decode-only graphs
+- Dynamic EPLB and Decode Fused MC2 disabled
 
 Start with [the deployment guide](docs/deployment-guide.md).
 

@@ -37,11 +37,15 @@ if [[ "$side" == "P" ]]; then
   cp "$SCRIPT_PATH/templates/prefill.sh" "$runtime/run_dp_template.sh"
   dp_size=${PREFILL_DP_SIZE:-4}
   tp_size=${PREFILL_TP_SIZE:-8}
+  dp_size_local=1
+  dp_rank_start=$position
   dp_address=$p_master
 else
   cp "$SCRIPT_PATH/templates/decode.sh" "$runtime/run_dp_template.sh"
-  dp_size=${DECODE_DP_SIZE:-4}
-  tp_size=${DECODE_TP_SIZE:-8}
+  dp_size=${DECODE_DP_SIZE:-8}
+  tp_size=${DECODE_TP_SIZE:-4}
+  dp_size_local=${DECODE_DP_SIZE_LOCAL:-2}
+  dp_rank_start=$((position * dp_size_local))
   dp_address=$d_master
 fi
 chmod 750 "$runtime/run_dp_template.sh"
@@ -50,8 +54,8 @@ backend_log="$LOG_PATH/${MODELARTS_COHORT_ID}-${role}-${POD_IP}.log"
 launch=(python3 "$runtime/launch_online_dp.py"
   --dp-size "$dp_size"
   --tp-size "$tp_size"
-  --dp-size-local 1
-  --dp-rank-start "$position"
+  --dp-size-local "$dp_size_local"
+  --dp-rank-start "$dp_rank_start"
   --dp-address "$dp_address"
   --dp-rpc-port "$DP_RPC_PORT"
   --vllm-start-port "$PREDICT_PORT")
@@ -76,13 +80,17 @@ proxy="$runtime/load_balance_proxy.py"
 cp "$LOAD_BALANCE_PROXY_SCRIPT" "$proxy"
 python3 "$SCRIPT_PATH/patch_proxy.py" "$proxy"
 p_hosts=$(jq -r '.p_ips | join(" ")' "$topology")
-d_hosts=$(jq -r '.d_ips | join(" ")' "$topology")
-ports="$PREDICT_PORT $PREDICT_PORT $PREDICT_PORT $PREDICT_PORT"
+d_hosts=$(jq -r '.d_ips | map([., .]) | flatten | join(" ")' "$topology")
+p_ports="$PREDICT_PORT $PREDICT_PORT $PREDICT_PORT $PREDICT_PORT"
+d_ports=""
+for _ in $(seq 1 4); do
+  d_ports+="$PREDICT_PORT $((PREDICT_PORT + 1)) "
+done
 
 exec python3 "$proxy" \
   --host 0.0.0.0 \
   --port "$PROXY_PORT" \
   --prefiller-hosts $p_hosts \
-  --prefiller-ports $ports \
+  --prefiller-ports $p_ports \
   --decoder-hosts $d_hosts \
-  --decoder-ports $ports
+  --decoder-ports $d_ports

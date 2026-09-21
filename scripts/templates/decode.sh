@@ -44,25 +44,22 @@ vllm serve "$MODEL_PATH" \
   --data-parallel-address "$5" \
   --data-parallel-rpc-port "$6" \
   --tensor-parallel-size "$7" \
-  --prefill-context-parallel-size 1 \
-  --decode-context-parallel-size 8 \
-  --cp-kv-cache-interleave-size 128 \
   --enable-expert-parallel \
   --enable-prefix-caching \
   --seed 1024 \
   --served-model-name "${SERVED_MODEL_NAME:-glm-5.2}" \
   --async-scheduling \
-  --max-model-len "${MAX_MODEL_LEN:-1048576}" \
+  --max-model-len "${MAX_MODEL_LEN:-256000}" \
   --max-num-batched-tokens "${DECODE_MAX_BATCHED_TOKENS:-256}" \
   --trust-remote-code \
-  --max-num-seqs "${MAX_NUM_SEQS:-8}" \
-  --gpu-memory-utilization "${DECODE_GPU_MEMORY_UTILIZATION:-0.90}" \
+  --max-num-seqs "${DECODE_MAX_NUM_SEQS:-128}" \
+  --gpu-memory-utilization "${DECODE_GPU_MEMORY_UTILIZATION:-0.95}" \
   --safetensors-load-strategy prefetch \
   --quantization ascend \
   --enable-auto-tool-choice \
   --tool-call-parser glm47 \
   --reasoning-parser glm45 \
-  --kv-transfer-config '{"kv_connector":"MultiConnector","kv_role":"kv_consumer","kv_load_failure_policy":"recompute","kv_connector_extra_config":{"connectors":[{"kv_connector":"MooncakeConnectorV1","kv_buffer_size":8000000000,"kv_role":"kv_consumer","kv_port":"30100","kv_connector_extra_config":{"prefill":{"dp_size":4,"tp_size":8},"decode":{"dp_size":4,"tp_size":8},"load_async":true,"use_layerwise":true}},{"kv_connector":"AscendStoreConnector","kv_role":"kv_consumer","kv_connector_extra_config":{"lookup_rpc_port":"0","load_async":true,"backend":"mooncake"}}]}}' \
+  --kv-transfer-config '{"kv_connector":"MultiConnector","kv_role":"kv_consumer","kv_load_failure_policy":"recompute","kv_connector_extra_config":{"connectors":[{"kv_connector":"MooncakeConnectorV1","kv_role":"kv_consumer","kv_port":"30100","kv_connector_extra_config":{"prefill":{"dp_size":4,"tp_size":8},"decode":{"dp_size":8,"tp_size":4}}},{"kv_connector":"AscendStoreConnector","kv_role":"kv_consumer","kv_connector_extra_config":{"lookup_rpc_port":"0","load_async":true,"backend":"mooncake"}}]}}' \
   --compilation-config '{"cudagraph_mode":"FULL_DECODE_ONLY","cudagraph_capture_sizes":[4,8,16,24,32,40,48,56,64,96,128,160,192,224,256,298,320,352,384]}' \
   --additional-config '{"ascend_compilation_config":{"enable_npugraph_ex":true,"enable_static_kernel":false},"fuse_muls_add":true,"enable_mlapo":true,"multistream_overlap_shared_expert":true,"enable_sparse_sfa_c8":true,"enable_sparse_li_c8":true,"int8_per_token_head":true,"enable_cpu_binding":true,"recompute_scheduler_enable":true}' \
   --speculative-config "{\"num_speculative_tokens\":${DECODE_MTP_TOKENS:-3},\"method\":\"deepseek_mtp\",\"enforce_eager\":true}" \
